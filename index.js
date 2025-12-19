@@ -114,7 +114,7 @@ app.get('/testelogin', autenticar, (req,res)=>{
 //sair da conta
 app.post('/logout', (req,res)=>{
     res.clearCookie("token", {
-        httpOnly: true, sameSite: "strict",  path: "/"
+        httpOnly: true, sameSite: "none", secure: true,  path: "/"
     })
     res.status(200).json({msg : "logout realizado com sucesso"})
 })
@@ -136,8 +136,8 @@ app.post('/testelogin', async (req, res) => {
             "token", meutoken,
             {   path: "/",
                 httpOnly: true, //oculta tokien do js
-                sameSite: "strict", //segurança para excutar só no site
-                //secure: true //só permite o envio via https, não permite localhost
+                sameSite: "none", //segurança para excutar só no site
+                secure: true //só permite o envio via https, não permite localhost
             })
 
         res.status(200).json({ msg: "LOGIN COM SUCESSO" })
@@ -159,8 +159,8 @@ app.post('/atualizatoken', (req, res) => {
             { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
 
         res.cookie("token", novotoken, {
-            httpOnly: true, sameSite: "strict"
-            //,secure: true
+            httpOnly: true, sameSite: "none",
+            secure: true
         })
 
         res.status(200).json({ msg: 'okay' })
