@@ -27,7 +27,8 @@ import itens from "./itemnovo.js"
 //instancia express na variavel app
 const app = express()
 app.use(cors({
-    origin: "https://achados-e-perdidos-gray.vercel.app", credentials:true
+    //origin: "https://achados-e-perdidos-gray.vercel.app", credentials:true
+    origin: "http://localhost:5173"
 }))
 
 //Configura o express pra entender arquivos JSON - converte do boy para JSON
@@ -95,15 +96,29 @@ import Usuario from './Usuario.js'
 app.use(cookieParser())
 
 function autenticar(req, res, next) {
-    const mtoken = req.cookies.token
-    if (!mtoken) return res.status(401).json({ msg: 'erro' })
 
+    const tokenheader = req.headers["authorization"]
+    if (!tokenheader) return res.status(401).json({msg:"erro"})
+
+    const token = tokenheader.split(' ')[1] //quebra a string e pega o segundo elemento
+    if (!token) return res.status(401).json({msg:"erro"})
+    
     try {
-        req.user = jwt.verify(mtoken, process.env.jwtsecret)
-        next()
-    } catch {
-        //res.clearCookie("token", {httpOnly: true, sameSite: "strict"})
-        return res.status(401).json({ msg: 'erro' }) }
+         req.user = jwt.verify(token, process.env.jwtsecret)
+         next()
+     } catch {
+         //res.clearCookie("token", {httpOnly: true, sameSite: "strict"})
+         return res.status(401).json({ msg: 'erro' }) }
+    
+    // const mtoken = req.cookies.token
+    // if (!mtoken) return res.status(401).json({ msg: 'erro' })
+
+    // try {
+    //     req.user = jwt.verify(mtoken, process.env.jwtsecret)
+    //     next()
+    // } catch {
+    //     //res.clearCookie("token", {httpOnly: true, sameSite: "strict"})
+    //     return res.status(401).json({ msg: 'erro' }) }
 }
 
 //verifica se usuário está logado
@@ -113,9 +128,9 @@ app.get('/testelogin', autenticar, (req,res)=>{
 
 //sair da conta
 app.post('/logout', (req,res)=>{
-    res.clearCookie("token", {
-        httpOnly: true, sameSite: "none", secure: true,  path: "/"
-    })
+    // res.clearCookie("token", {
+    //     httpOnly: true, sameSite: "none", secure: true,  path: "/"
+    // })
     res.status(200).json({msg : "logout realizado com sucesso"})
 })
 
@@ -132,15 +147,15 @@ app.post('/testelogin', async (req, res) => {
             { nivel: "admin" }, process.env.jwtsecret, { expiresIn: "15m" })
 
         //envia um token por cookie
-        res.cookie(
-            "token", meutoken,
-            {   path: "/",
-                httpOnly: true, //oculta tokien do js
-                sameSite: "none", //segurança para excutar só no site
-                secure: true //só permite o envio via https, não permite localhost
-            })
+        // res.cookie(
+        //     "token", meutoken,
+        //     {   path: "/",
+        //         httpOnly: true, //oculta tokien do js
+        //         sameSite: "none", //segurança para excutar só no site
+        //         secure: true //só permite o envio via https, não permite localhost
+        //     })
 
-        res.status(200).json({ msg: "LOGIN COM SUCESSO" })
+        res.status(200).json({ msg: "LOGIN COM SUCESSO", token: meutoken })
 
 
     } else { return res.status(400).json({ msg: 'LOGIN INCORRETO' }) }
@@ -150,22 +165,39 @@ app.post('/testelogin', async (req, res) => {
 //console.log(senhahash)
 
 app.post('/atualizatoken', (req, res) => {
-    const token = req.cookies.token
-    if (!token) return res.status(401).json({ msg: 'ERRO' })
+
+    const authHeader = req.headers["authorization"]
+    if (!authHeader) return res.status(401).json({msg: "ERRO"})
+
+    const token = authHeader.split(' ')[1]
+    if (!token) return res.status(401).json({msg: "ERRO"})
 
     try {
-        const dadostoken = jwt.verify(token, process.env.jwtsecret)
-        const novotoken = jwt.sign(
-            { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
+         const dadostoken = jwt.verify(token, process.env.jwtsecret)
+         const novotoken = jwt.sign(
+             { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
 
-        res.cookie("token", novotoken, {
-            httpOnly: true, sameSite: "none",
-            secure: true
-        })
+         res.status(200).json({ msg: 'okay', token: novotoken })
 
-        res.status(200).json({ msg: 'okay' })
+     } catch { res.status(401).json({ msg: 'erro' }) }
 
-    } catch { res.status(401).json({ msg: 'erro' }) }
+
+    // const token = req.cookies.token
+    // if (!token) return res.status(401).json({ msg: 'ERRO' })
+
+    // try {
+    //     const dadostoken = jwt.verify(token, process.env.jwtsecret)
+    //     const novotoken = jwt.sign(
+    //         { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
+
+    //     res.cookie("token", novotoken, {
+    //         httpOnly: true, sameSite: "none",
+    //         secure: true
+    //     })
+
+    //     res.status(200).json({ msg: 'okay' })
+
+    // } catch { res.status(401).json({ msg: 'erro' }) }
 
 })
 
