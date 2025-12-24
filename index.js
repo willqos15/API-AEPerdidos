@@ -27,8 +27,8 @@ import itens from "./itemnovo.js"
 //instancia express na variavel app
 const app = express()
 app.use(cors({
-    //origin: "https://achados-e-perdidos-gray.vercel.app"
-    origin: "http://localhost:5173"
+    origin: "https://achados-e-perdidos-gray.vercel.app"
+    //origin: "http://localhost:5173"
 }))
 
 //Configura o express pra entender arquivos JSON - converte do boy para JSON
