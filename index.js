@@ -27,8 +27,8 @@ import itens from "./itemnovo.js"
 //instancia express na variavel app
 const app = express()
 app.use(cors({
-    origin: "https://achados-e-perdidos-gray.vercel.app"
-    //origin: "http://localhost:5173"
+    //origin: "https://achados-e-perdidos-gray.vercel.app"
+    origin: "http://localhost:5173"
 }))
 
 //Configura o express pra entender arquivos JSON - converte do boy para JSON
@@ -98,18 +98,19 @@ app.use(cookieParser())
 function autenticar(req, res, next) {
 
     const tokenheader = req.headers["authorization"]
-    if (!tokenheader) return res.status(401).json({msg:"erro"})
+    if (!tokenheader) return res.status(401).json({ msg: "erro" })
 
     const token = tokenheader.split(' ')[1] //quebra a string e pega o segundo elemento
-    if (!token) return res.status(401).json({msg:"erro"})
-    
+    if (!token) return res.status(401).json({ msg: "erro" })
+
     try {
-         req.user = jwt.verify(token, process.env.jwtsecret)
-         next()
-     } catch {
-         //res.clearCookie("token", {httpOnly: true, sameSite: "strict"})
-         return res.status(401).json({ msg: 'erro' }) }
-    
+        req.user = jwt.verify(token, process.env.jwtsecret)
+        next()
+    } catch {
+        //res.clearCookie("token", {httpOnly: true, sameSite: "strict"})
+        return res.status(401).json({ msg: 'erro' })
+    }
+
     // const mtoken = req.cookies.token
     // if (!mtoken) return res.status(401).json({ msg: 'erro' })
 
@@ -122,18 +123,19 @@ function autenticar(req, res, next) {
 }
 
 //verifica se usuário está logado
-app.get('/testelogin', autenticar, (req,res)=>{
-    res.status(200).json({logado: true, nivel: req.user.nivel})
+app.get('/testelogin', autenticar, (req, res) => {
+    res.status(200).json({ logado: true, nivel: req.user.nivel })
 })
 
 //sair da conta
-app.post('/logout', (req,res)=>{
+app.post('/logout', (req, res) => {
     // res.clearCookie("token", {
     //     httpOnly: true, sameSite: "none", secure: true,  path: "/"
     // })
-    res.status(200).json({msg : "logout realizado com sucesso"})
+    res.status(200).json({ msg: "logout realizado com sucesso" })
 })
 
+//faz o login completo
 app.post('/testelogin', async (req, res) => {
     const { email, password } = req.body
     if (!email || !password) { return res.status(422).json({ msg: 'Email e senha obrigatórios' }) }
@@ -167,19 +169,19 @@ app.post('/testelogin', async (req, res) => {
 app.post('/atualizatoken', (req, res) => {
 
     const authHeader = req.headers["authorization"]
-    if (!authHeader) return res.status(401).json({msg: "ERRO"})
+    if (!authHeader) return res.status(401).json({ msg: "ERRO" })
 
     const token = authHeader.split(' ')[1]
-    if (!token) return res.status(401).json({msg: "ERRO"})
+    if (!token) return res.status(401).json({ msg: "ERRO" })
 
     try {
-         const dadostoken = jwt.verify(token, process.env.jwtsecret)
-         const novotoken = jwt.sign(
-             { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
+        const dadostoken = jwt.verify(token, process.env.jwtsecret)
+        const novotoken = jwt.sign(
+            { nivel: dadostoken.nivel }, process.env.jwtsecret, { expiresIn: "15m" })
 
-         res.status(200).json({ msg: 'okay', token: novotoken })
+        res.status(200).json({ msg: 'okay', token: novotoken })
 
-     } catch { res.status(401).json({ msg: 'erro' }) }
+    } catch { res.status(401).json({ msg: 'erro' }) }
 
 
     // const token = req.cookies.token
@@ -251,19 +253,51 @@ app.post('/atualizatoken', (req, res) => {
 
 //UPLOAD DE IMAGEM
 const upload = multer({ storage: multer.memoryStorage() }) //deixa o arquivo na RAM temporariamente
-app.post('/upload', upload.single('file'), (req, res) => { //o input no html tem que ter name='file'
+app.post('/upload', autenticar, upload.single('file'), (req, res) => { //o input no html tem que ter name='file'
+
+
+
     if (!req.file) {
         return res.status(400).json({ erro: "Sem arquivo" })
     }
 
+
     cloudinary.uploader.upload_stream( //permite pegar da RAM
+
         (erro, resultado) => {
             if (erro) return res.status(500).json(erro)
-            res.json({ url: resultado.secure_url })
+            return res.json({
+                url: resultado.secure_url,
+                public_idfoto: resultado.public_id
+            })
         }
 
     ).end(req.file.buffer)
 })
+
+
+//DELETAR IMAGEM
+app.delete('/imgdel/:public_id',
+    (req, res) => {
+
+        const { public_id } = req.params
+
+        if (!public_id) {
+            return res.status(400).json({ msg: "Id publico não informado" })
+        }
+
+        cloudinary.uploader.destroy(public_id)
+            .then((resultado) => {
+
+                if (resultado.result !== 'ok') {
+                    return res.status(404).json({ msg: "imagem não encontrada" })
+                }
+                res.status(200).json({ msg: "sucesso ao deletar imagem" })
+            })
+            .catch((erro) => res.status(500).json({ msg: `falha ao apagar imagem` }))
+
+    }
+)
 
 
 
@@ -300,34 +334,83 @@ app.get("/busca/:nome", (req, res) => {
 
 
 //UPDATE
-app.put("/perdidos/:id", autenticar, (req, res) => {
-    itens.findByIdAndUpdate(req.params.id, req.body, { new: true })
-        .then((atualizado) => res.json(atualizado))
-        .catch(erro => console.log("erro busca" + erro))
+app.put("/perdidos/:id", autenticar, async (req, res) => {
+
+    try {
+        const item = await itens.findById(req.params.id)
+
+        if (!item) { return res.status(404).json({ msg: "item não encontrado " }) }
+
+        const Idfoto = item.public_idfoto
+        await cloudinary.uploader.destroy(Idfoto)
+
+        await itens.findByIdAndUpdate(req.params.id, req.body, { new: true })
+        return res.status(200).json({ msg: "itens atualizados com sucesso" })
+    }
+
+    catch (erro) {return res.status(500).json({ msg: "erro ao atualizar" })}
 })
+
+
+
+
+
+// //UPDATE TESTE PODE APAGAR COPIA DE SEGURANÇA
+// app.put("/perdidos/:id", autenticar, (req, res) => {
+//     itens.findByIdAndUpdate(req.params.id, req.body, { new: true })
+//         .then((atualizado) => res.json(atualizado))
+//         .catch(erro => console.log("erro busca" + erro))
+// })
 
 //DELETE
-app.delete("/perdidos/:id",autenticar, (req, res) => {
-    itens.findByIdAndDelete(req.params.id, req.body, { new: true })
-        .then((atualizado) => res.json(atualizado))
-        .catch(erro => console.log("erro busca" + erro))
+app.delete("/perdidos/:id", autenticar, async (req, res) => {
+
+    try {
+        //busca o item primeiro para pegar o publicidfoto
+        const item = await itens.findById(req.params.id)
+
+        if (!item) { return res.status(404).json({ msg: "item não encontrado " }) }
+
+        const Idfoto = item.public_idfoto
+
+        await itens.findByIdAndDelete(req.params.id)
+
+        if (Idfoto) {
+            await cloudinary.uploader.destroy(Idfoto)
+        }
+
+        return res.status(200).json({ msg: "img e item deletados com sucesso" })
+    }
+
+    catch (erro) {
+        return res.status(500).json({ msg: "erro no servidor" })
+    }
 })
 
+
+
+//DELETE copia de segurança/ apagar depois
+// app.delete("/perdidos/:id", autenticar, (req, res) => {
+//     itens.findByIdAndDelete(req.params.id, req.body, { new: true })
+//         .then((atualizado) => res.json(atualizado))
+//         .catch(erro => console.log("erro busca" + erro))
+// })
+
 //CREATE ENVIA INFORMAÇÕES
-app.post("/cadastro",autenticar, async (req, res) => {
-    
-    try{
+app.post("/cadastro", autenticar, async (req, res) => {
+
+    try {
         const qtd = await itens.countDocuments()
-        if (qtd>=5) {return res.status(403).json({msg: "Limite de 10 itens"})}
-        
+        if (qtd >= 5) { return res.status(403).json({ msg: "Limite de 5 itens" }) }
+
         const novoCadastro = await itens.create(req.body)
         return res.status(201).json(novoCadastro)
     }
 
     catch (erro) {
         console.error("erro cadastro:", erro)
-        return res.status(500).json({msg: "Erro no servidor"})
-    }   
+        return res.status(500).json({ msg: "Erro no servidor" })
+    }
 })
 
 app.listen(3000, () => console.log("Servidor rodando 3000"))

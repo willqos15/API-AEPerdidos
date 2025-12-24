@@ -9,6 +9,7 @@ const itemnovoSchema = new mongoose.Schema({
   contato: String, 
   encontrado: Boolean, 
   foto: String,
+  public_idfoto: String,
 }
 )
 
