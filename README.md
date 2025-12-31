@@ -32,21 +32,47 @@ O frontend consome essa API para autenticação, listagem e gerenciamento dos it
 ```
 ---
 
+## Dependências
 
+O projeto utiliza as seguintes bibliotecas no backend: Express, CORS, Dotenv, Mongoose, Bcrypt, JSON Web Token, Multer e Cloudinary.
 
-##  Dependências
+Todas as dependências já estão configuradas no `package.json`.
 
-Instalação manual (passo a passo):
+---
 
-```bash
-npm install
-npm init -y
-npm install express cors dotenv mongoose bcrypt jsonwebtoken multer cloudinary
-```
+### Instalação
+
+Caso ainda não tenha, instale o Node.js (versão LTS):
+https://nodejs.org
+
+Em seguida, abra o terminal na pasta do projeto e execute:
+`npm install`
+
 ---
 
 ### Configuração do projeto:  
 No package.json é necessário habilitar ES Modules adicionando `"type": "module"`.
+
+---
+### Configuração de CORS (Importante)
+
+A API utiliza **CORS com origem controlada** para permitir requisições apenas do frontend autorizado.
+
+Por padrão, o backend está configurado para aceitar requisições do frontend em **produção (Vercel)**.  
+Para **testes locais**, é necessário ajustar manualmente essa configuração.
+
+No arquivo principal do servidor, existe o seguinte trecho:
+
+```js
+const app = express()
+app.use(cors({
+    origin: "https://achados-e-perdidos-gray.vercel.app"
+    // origin: "http://localhost:5173"
+}))
+```
+
+Comente a URL da Vercel e descomente o `http://localhost:5173`
+
 
 ---
 
